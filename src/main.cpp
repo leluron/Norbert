@@ -11,9 +11,10 @@
 using namespace std;
 using namespace antlr4;
 
-int main() {
+int main(int argc, char **argv) {
 
-    ifstream stream("test.nor");
+    string filename = (argc==2)?argv[1]:"test.nor";
+    ifstream stream(filename);
     ANTLRInputStream input(stream);
     NorbertLexer lexer(&input);
     CommonTokenStream tokens(&lexer);

@@ -10,7 +10,12 @@ using namespace antlr4;
 using addressmap = std::map<std::string, uint64_t>;
 
 addressmap stdlib = {
-    {"printf", Printf}
+    {"printf", Printf},
+    {"list_create", ListCreate},
+    {"list_delete", ListDelete},
+    {"list_access", ListAccess},
+    {"list_set", ListSet},
+    {"list_resize", ListResize},
 };
 
 vector<int64_t> stringArrayToCode(std::string str) {
@@ -169,7 +174,7 @@ public:
         ss << ctx->FLOAT()->getText();
         float val;
         ss >> val;
-        return *(int64_t*)&val;
+        return *(int32_t*)&val;
     }
 
     virtual antlrcpp::Any visitName(BytecodeParser::NameContext *ctx) override {

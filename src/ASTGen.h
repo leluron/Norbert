@@ -171,4 +171,16 @@ private:
         }
         return l;
     }
+
+    virtual antlrcpp::Any visitListexp(NorbertParser::ListexpContext *ctx) override {
+        vector<expp> l = (ctx->explist())?visit(ctx->explist()).as<vector<expp>>():vector<expp>();
+        return expp(new ListExp(l));
+    }
+
+    virtual antlrcpp::Any visitIndexexp(NorbertParser::IndexexpContext *ctx) override {
+        return expp(new IndexExp(
+            visit(ctx->exp(0)),
+            visit(ctx->exp(1))
+        ));
+    }
 };

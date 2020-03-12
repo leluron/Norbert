@@ -63,7 +63,7 @@ public:
         if (auto e = dynamic_pointer_cast<IntExp>(eb)) {
             code << "load_int " << e->value << endl;
         } else if (auto e = dynamic_pointer_cast<FloatExp>(eb)) {
-            code << "load_float" << e->value << endl;
+            code << "load_float " << showpoint << e->value << endl;
         } else if (auto e = dynamic_pointer_cast<StringExp>(eb)) {
             auto lbl = newlabel();
             constants << lbl << ": " << e->value << endl;
@@ -109,6 +109,21 @@ public:
             code << condlbl << ":" << endl;
             visit(e->then);
             code << endlbl << ":" << endl;
+        } else if (auto e = dynamic_pointer_cast<ListExp>(eb)) {
+            code << "call_ext list_create" << endl;
+            if (e->elements.size() > 0) {
+                code << "load_int " << e->elements.size() << endl;
+                code << "call_ext list_resize" << endl;
+                for (int i=0;i<e->elements.size();i++) {
+                    code << "load_int " << i << endl;
+                    visit(e->elements[i]);
+                    code << "call_ext list_set" << endl;
+                }
+            }
+        } else if (auto e = dynamic_pointer_cast<IndexExp>(eb)) {
+            visit(e->left);
+            visit(e->index);
+            code << "call_ext list_access" << endl;
         }
     }
 

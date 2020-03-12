@@ -127,3 +127,16 @@ public:
     TernaryExp(expp cond, expp then, expp els) : cond(cond), then(then), els(els) {}
     expp cond, then, els;
 };
+
+class ListExp : public Exp {
+public:
+    ListExp(vector<expp> elements) : elements(elements) {}
+    vector<expp> elements;
+};
+
+class IndexExp : public Exp {
+public:
+    IndexExp(expp left, expp index) : left(left), index(index) {}
+    expp left;
+    expp index;
+};

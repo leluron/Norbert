@@ -1,0 +1,3 @@
+a = [1.0]
+
+printf("value : %f\n", a[0])

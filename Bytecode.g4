@@ -34,6 +34,7 @@ opcode
     | 'free'
     | 'call_ext'
     | 'call'
+    | 'pop'
     | 'return'
     | 'ifjump'
     | 'jump'

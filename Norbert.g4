@@ -20,6 +20,8 @@ exp
   | FLOAT                             #floatexp
   | STRING                            #stringexp
   | ID                                #idexp
+  | '[' explist? ']'                  #listexp
+  | exp '[' exp ']'                   #indexexp
   | exp '(' explist? ')'             #funccallexp
   | op=('-' | 'not') exp              #unaryexp
   | exp op=('*' | '/' | '%') exp      #multiplicativeexp

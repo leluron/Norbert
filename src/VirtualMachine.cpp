@@ -76,14 +76,13 @@ void VirtualMachine::step() {
         case Alloc: {
             tie(t,d) = extract(operandStack.top()); operandStack.pop();
             if (t != Int) throw runtime_error("Can't allocate with size of non-int");
-            auto p = RAM;
-            RAM += d;
-            operandStack.push(makeValue(Pointer, p));
+            operandStack.push(alloc(d));
             break;
         }
         case Free : {
             tie(t,d) = extract(operandStack.top()); operandStack.pop();
             if (t != Pointer) throw runtime_error("Can't free from a non-pointer");
+            vmfree(d);
             break;
         }
         case Call: {
@@ -115,6 +114,9 @@ void VirtualMachine::step() {
         }
         case Jump: {
             PC = asPtr(i1); break;
+        }
+        case Pop: {
+            operandStack.pop(); break;
         }
         case Not: {
             tie(t,d) = extract(operandStack.top()); operandStack.pop();
@@ -305,6 +307,17 @@ void VirtualMachine::run() {
     }
 }
 
+uint32_t VirtualMachine::alloc(int size) {
+    auto l = RAM;
+    RAM += size;
+    memory.resize(RAM);
+    return l;
+}
+
+void VirtualMachine::vmfree(uint32_t addr) {
+
+}
+
 void VirtualMachine::printf() {
     Type t; int32_t v; tie(t,v) = extract(operandStack.top());
     operandStack.pop();
@@ -333,4 +346,70 @@ void VirtualMachine::printf() {
         }
         addr++;
     }
+}
+
+void VirtualMachine::list_create() {
+    auto addr = alloc(2);
+    memory[addr] = makeValue(Int, 0);
+    memory[addr+1] = -1;
+    operandStack.push(makeValue(List, addr));
+}
+
+void VirtualMachine::list_delete() {
+    Type t; int32_t d;
+    tie(t,d) = extract(operandStack.top()); operandStack.pop();
+    if (t != List) throw runtime_error("Can't delete a non-list");
+    int len;
+    tie(ignore, len) = extract(memory[d]);
+    if (len > 0) vmfree(memory[d+1]);
+    vmfree(d);
+}
+
+void VirtualMachine::list_access() {
+    Type t,t2; int32_t d,d2;
+    tie(t2,d2) = extract(operandStack.top()); operandStack.pop();
+    tie(t,d) = extract(operandStack.top()); operandStack.pop();
+    if (t != List) throw runtime_error("Can't access from non-list");
+    if (t2 != Int) throw runtime_error("Can't index into list with non-int");
+    int len;
+    tie(ignore, len) = extract(memory[d]);
+
+    if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
+    operandStack.push(memory[memory[d+1]+d2]);
+}
+
+void VirtualMachine::list_set() {
+    Type t,t2; int32_t d,d2;
+    auto mem = operandStack.top(); operandStack.pop();
+    tie(t2,d2) = extract(operandStack.top()); operandStack.pop();
+    tie(t,d) = extract(operandStack.top()); operandStack.pop();
+    if (t != List) throw runtime_error("Can't access from non-list");
+    if (t2 != Int) throw runtime_error("Can't index into list with non-int");
+    int len;
+    tie(ignore, len) = extract(memory[d]);
+    if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
+    memory[memory[d+1]+d2] = mem;
+    operandStack.push(makeValue(t,d));
+}
+
+void VirtualMachine::list_resize() {
+    Type t,t2; int32_t d,d2;
+    tie(t2,d2) = extract(operandStack.top()); operandStack.pop();
+    tie(t,d) = extract(operandStack.top()); operandStack.pop();
+    if (t != List) throw runtime_error("Can't access from non-list");
+    if (t2 != Int) throw runtime_error("Can't resize list with non-int");
+
+    vector<uint64_t> contents(d2);
+    for (int i=0;i<memory[d];i++) {
+        contents[i] = memory[memory[d+1]+i];
+    }
+
+    vmfree(memory[d+1]);
+    memory[d] = d2;
+    memory[d+1] = alloc(d2);
+    for (int j=0;j<d2;j++) {
+        memory[memory[d+1]+j] = contents[j];
+    }
+    operandStack.push(makeValue(t,d));
+
 }
