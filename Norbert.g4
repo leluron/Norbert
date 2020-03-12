@@ -8,7 +8,6 @@ stat
   | 'while' exp stat    #whilestat
   | 'if' exp stat ('elseif' exp stat)* ('else' els=stat)?       #ifstat
   | '{' stat* '}' #blockstat
-  | 'break'       #breakstat
   | 'return' exp? #returnstat
   ;
 

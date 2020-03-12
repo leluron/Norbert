@@ -57,10 +57,6 @@ private:
         return statp(new BlockStat(l));
     }
 
-    virtual antlrcpp::Any visitBreakstat(NorbertParser::BreakstatContext *ctx) override {
-        return statp(new BreakStat());
-    }
-
     virtual antlrcpp::Any visitReturnstat(NorbertParser::ReturnstatContext *ctx) override {
         return statp(new ReturnStat(visit(ctx->exp()).as<expp>()));
     }
@@ -144,7 +140,7 @@ private:
 
     virtual antlrcpp::Any visitStringexp(NorbertParser::StringexpContext *ctx) override {
         auto str = ctx->STRING()->getText();
-        return expp(new StringExp(str.substr(1, str.length()-2)));
+        return expp(new StringExp(str));
     }
 
     virtual antlrcpp::Any visitTernaryexp(NorbertParser::TernaryexpContext *ctx) override {
