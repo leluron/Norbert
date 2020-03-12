@@ -1,0 +1,6 @@
+.deps
+.obj
+src/parser
+main
+grammar_files
+thoughts

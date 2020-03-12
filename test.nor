@@ -1,0 +1,8 @@
+i=0
+n=28472
+
+while i<100 and n != 1 {
+    printf("%d\n", n)
+    n = 3*n +1 if n%2==1 else n/2
+    i = i + 1
+}
