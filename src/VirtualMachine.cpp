@@ -62,9 +62,9 @@ void VirtualMachine::step() {
             break;
         }
         case StoreMem: {
+            v = operandStack.top(); operandStack.pop();
             tie(t,d) = extract(operandStack.top()); operandStack.pop();
             if (t != Pointer) throw runtime_error("Can't write to memory with a non-pointer");
-            v = operandStack.top(); operandStack.pop();
             memory[asPtr(d)] = v;
             break;
         }
@@ -365,7 +365,7 @@ void VirtualMachine::list_delete() {
     vmfree(d);
 }
 
-void VirtualMachine::list_access() {
+void VirtualMachine::list_access_ptr() {
     Type t,t2; int32_t d,d2;
     tie(t2,d2) = extract(operandStack.top()); operandStack.pop();
     tie(t,d) = extract(operandStack.top()); operandStack.pop();
@@ -375,21 +375,8 @@ void VirtualMachine::list_access() {
     tie(ignore, len) = extract(memory[d]);
 
     if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
-    operandStack.push(memory[memory[d+1]+d2]);
-}
-
-void VirtualMachine::list_set() {
-    Type t,t2; int32_t d,d2;
-    auto mem = operandStack.top(); operandStack.pop();
-    tie(t2,d2) = extract(operandStack.top()); operandStack.pop();
-    tie(t,d) = extract(operandStack.top()); operandStack.pop();
-    if (t != List) throw runtime_error("Can't access from non-list");
-    if (t2 != Int) throw runtime_error("Can't index into list with non-int");
-    int len;
-    tie(ignore, len) = extract(memory[d]);
-    if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
-    memory[memory[d+1]+d2] = mem;
-    operandStack.push(makeValue(t,d));
+    operandStack.push(makeValue(t, d));
+    operandStack.push(makeValue(Pointer, memory[d+1]+d2));
 }
 
 void VirtualMachine::list_resize() {
@@ -411,5 +398,4 @@ void VirtualMachine::list_resize() {
         memory[memory[d+1]+j] = contents[j];
     }
     operandStack.push(makeValue(t,d));
-
 }

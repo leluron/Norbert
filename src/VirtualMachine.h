@@ -41,7 +41,8 @@ enum Instruction : int32_t {
 };
 
 enum ReservedFuncs {
-    Printf, ListCreate, ListDelete, ListAccess, ListSet, ListResize,
+    Printf, 
+    ListCreate, ListDelete, ListResize, ListAccessPtr
 };
 
 using vmcode = std::vector<uint64_t>;
@@ -77,9 +78,8 @@ private:
         { Printf, &VirtualMachine::printf},
         { ListCreate, &VirtualMachine::list_create},
         { ListDelete, &VirtualMachine::list_delete},
-        { ListAccess, &VirtualMachine::list_access},
-        { ListSet, &VirtualMachine::list_set},
         { ListResize, &VirtualMachine::list_resize},
+        { ListAccessPtr, &VirtualMachine::list_access_ptr}
     };
 
     uint32_t alloc(int size);
@@ -90,8 +90,7 @@ private:
     void printf();
     void list_create();
     void list_delete();
-    void list_access();
-    void list_set();
     void list_resize();
+    void list_access_ptr();
 
 };

@@ -13,8 +13,7 @@ addressmap stdlib = {
     {"printf", Printf},
     {"list_create", ListCreate},
     {"list_delete", ListDelete},
-    {"list_access", ListAccess},
-    {"list_set", ListSet},
+    {"list_access_ptr", ListAccessPtr},
     {"list_resize", ListResize},
 };
 

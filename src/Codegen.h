@@ -29,8 +29,16 @@ public:
                 id = localId;
                 localId += 1;
             } else id = it->second;
-            visit(s->right);
-            code << "store_var " << id << endl;
+            if (!s->left.suffix) {
+                visit(s->right);
+                code << "store_var " << id << endl;
+            } else {
+                code << "load_var " << id << endl;
+                visit(s->left.suffix);
+                code << "call_ext list_access_ptr" << endl;
+                visit(s->right);
+                code << "store_mem" << endl;
+            }
         } else if (auto s = dynamic_pointer_cast<FuncCallStat>(sb)) {
             visit(expp(new FuncCallExp(s->func, s->args)));
         } else if (auto s = dynamic_pointer_cast<WhileStat>(sb)) {
@@ -56,6 +64,12 @@ public:
         } else if (auto s = dynamic_pointer_cast<ReturnStat>(sb)) {
             visit(s->ret);
             code << "return" << endl;
+        }
+    }
+
+    void visit(lexpsuffixp suf) {
+        if (auto s = dynamic_pointer_cast<IndexSuffix>(suf)) {
+            visit(s->i);
         }
     }
 
@@ -116,14 +130,16 @@ public:
                 code << "call_ext list_resize" << endl;
                 for (int i=0;i<e->elements.size();i++) {
                     code << "load_int " << i << endl;
+                    code << "call_ext list_access_ptr" << endl;
                     visit(e->elements[i]);
-                    code << "call_ext list_set" << endl;
+                    code << "store_mem" << endl;
                 }
             }
         } else if (auto e = dynamic_pointer_cast<IndexExp>(eb)) {
             visit(e->left);
             visit(e->index);
-            code << "call_ext list_access" << endl;
+            code << "call_ext list_access_ptr" << endl;
+            code << "load_mem" << endl;
         }
     }
 

@@ -2,5 +2,5 @@
 .obj
 src/parser
 main
-grammar_files
+grammar_tests
 thoughts
