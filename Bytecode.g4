@@ -25,7 +25,7 @@ opcode
     : o=('noop'
     | 'load_int'
     | 'load_float'
-    | 'load_ptr'
+    | 'load_str'
     | 'load_var'
     | 'load_mem'
     | 'store_var'
@@ -52,8 +52,7 @@ opcode
     | 'gt'
     | 'gteq'
     | 'eq'
-    | 'neq'
-    | 'end')
+    | 'neq')
     ;
 
 ID

@@ -113,7 +113,7 @@ public:
             if (op == "noop") i0 = Noop;
             else if (op == "load_int") i0 = LoadInt;
             else if (op == "load_float") i0 = LoadFloat;
-            else if (op == "load_ptr") i0 = LoadPtr;
+            else if (op == "load_str") i0 = LoadStr;
             else if (op == "load_var") i0 = LoadVar;
             else if (op == "load_mem") i0 = LoadMem;
             else if (op == "store_var") i0 = StoreVar;
@@ -140,7 +140,6 @@ public:
             else if (op == "gteq") i0 = Gteq;
             else if (op == "eq") i0 = Eq;
             else if (op == "neq") i0 = Neq;
-            else if (op == "end") i0 = End;
 
             int32_t i1 = Noop;
             if (ctx->intliteral()) i1 = visit(ctx->intliteral());

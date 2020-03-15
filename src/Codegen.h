@@ -13,7 +13,7 @@ public:
         for (auto s : f.stats) {
             visit(s);
         }
-        code << "end" << endl;
+        code << "return" << endl;
         cout << str.str() << endl;
         cout << constantsstr.str() << endl;
         return assemble(str.str() + constantsstr.str());
@@ -81,7 +81,7 @@ public:
         } else if (auto e = dynamic_pointer_cast<StringExp>(eb)) {
             auto lbl = newlabel();
             constants << lbl << ": " << e->value << endl;
-            code << "load_ptr " << lbl << endl;
+            code << "load_str " << lbl << endl;
         } else if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
             auto it = locals.find(e->name);
             if (it == locals.end()) throw runtime_error("Can't find local");
