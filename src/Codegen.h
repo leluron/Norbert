@@ -67,20 +67,35 @@ public:
 
     void visit(lexpp lexp) {
         if (auto l = dynamic_pointer_cast<LexpId>(lexp)) {
-            auto name = l->name;
-            auto it = locals.find(name);
-            int id;
-            if (it == locals.end()) {
-                locals[name] = localId;
-                id = localId;
-                localId += 1;
-            } else id = it->second;
-            code << "load_var " << id << endl;
+            visitLexpId(l);
         } else if (auto l = dynamic_pointer_cast<LexpIndex>(lexp)) {
-            visit(l->l);
+            visit2(l->l);
             visit(l->e);
             code << "call_ext list_access_ptr" << endl;
         }
+    }
+
+    void visit2(lexpp lexp) {
+        if (auto l = dynamic_pointer_cast<LexpId>(lexp)) {
+            visitLexpId(l);
+        } else if (auto l = dynamic_pointer_cast<LexpIndex>(lexp)) {
+            visit2(l->l);
+            visit(l->e);
+            code << "call_ext list_access_ptr" << endl;
+            code << "load_mem" << endl;
+        }
+    }
+
+    void visitLexpId(shared_ptr<LexpId> l) {
+        auto name = l->name;
+        auto it = locals.find(name);
+        int id;
+        if (it == locals.end()) {
+            locals[name] = localId;
+            id = localId;
+            localId += 1;
+        } else id = it->second;
+        code << "load_var " << id << endl;
     }
 
     void visit(expp eb) {
