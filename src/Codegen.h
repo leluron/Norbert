@@ -104,8 +104,16 @@ public:
         } else if (auto e = dynamic_pointer_cast<FloatExp>(eb)) {
             code << "load_float " << showpoint << e->value << endl;
         } else if (auto e = dynamic_pointer_cast<StringExp>(eb)) {
-            auto lbl = newlabel();
-            constants << lbl << ": " << e->value << endl;
+            auto it = strToLbl.find(e->value);
+            string lbl;
+            if (it == strToLbl.end()) {
+                lbl = newlabel();
+                lblToStr[lbl] = e->value;
+                strToLbl[e->value] = lbl;
+                constants << lbl << ": " << e->value << endl;
+            } else {
+                lbl = strToLbl[e->value];
+            }
             code << "load_str " << lbl << endl;
         } else if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
             auto it = locals.find(e->name);
@@ -185,4 +193,6 @@ private:
     stringbuf constantsstr;
     ostream code{&str};
     ostream constants{&constantsstr};
+    map<string, string> lblToStr;
+    map<string, string> strToLbl;
 };

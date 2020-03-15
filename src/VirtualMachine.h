@@ -99,6 +99,7 @@ private:
     WORD popOpStack();
     WORD getStackPtr(int index);
 
+    
     uint32_t alloc(int size);
     void vmfree(uint32_t addr);
 

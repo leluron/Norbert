@@ -190,7 +190,6 @@ public:
 
     addressmap addresses;
     vmcode code;
-
 };
 
 vmcode assemble(string assembly) {
