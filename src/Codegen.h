@@ -21,21 +21,19 @@ public:
 
     void visit(statp sb) {
         if (auto s = dynamic_pointer_cast<AssignStat>(sb)) {
-            auto name = s->left.name;
-            auto it = locals.find(name);
-            int id;
-            if (it == locals.end()) {
-                locals[name] = localId;
-                id = localId;
-                localId += 1;
-            } else id = it->second;
-            if (!s->left.suffix) {
+            if (auto l = dynamic_pointer_cast<LexpId>(s->left)) {
+                auto name = l->name;
+                auto it = locals.find(name);
+                int id;
+                if (it == locals.end()) {
+                    locals[name] = localId;
+                    id = localId;
+                    localId += 1;
+                } else id = it->second;
                 visit(s->right);
                 code << "store_var " << id << endl;
             } else {
-                code << "load_var " << id << endl;
-                visit(s->left.suffix);
-                code << "call_ext list_access_ptr" << endl;
+                visit(s->left);
                 visit(s->right);
                 code << "store_mem" << endl;
             }
@@ -67,9 +65,21 @@ public:
         }
     }
 
-    void visit(lexpsuffixp suf) {
-        if (auto s = dynamic_pointer_cast<IndexSuffix>(suf)) {
-            visit(s->i);
+    void visit(lexpp lexp) {
+        if (auto l = dynamic_pointer_cast<LexpId>(lexp)) {
+            auto name = l->name;
+            auto it = locals.find(name);
+            int id;
+            if (it == locals.end()) {
+                locals[name] = localId;
+                id = localId;
+                localId += 1;
+            } else id = it->second;
+            code << "load_var " << id << endl;
+        } else if (auto l = dynamic_pointer_cast<LexpIndex>(lexp)) {
+            visit(l->l);
+            visit(l->e);
+            code << "call_ext list_access_ptr" << endl;
         }
     }
 

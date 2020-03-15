@@ -62,8 +62,13 @@ private:
     }
 
     virtual antlrcpp::Any visitLexp(NorbertParser::LexpContext *ctx) override {
-        lexpsuffixp a = ctx->exp()?lexpsuffixp(new IndexSuffix(visit(ctx->exp()).as<expp>())):nullptr;
-        return Lexp(ctx->ID()->getText(), a);
+        if (ctx->ID()) {
+            return lexpp(new LexpId(ctx->ID()->getText()));
+        } else {
+            lexpp p = visit(ctx->lexp());
+            expp e = visit(ctx->exp());
+            return lexpp(new LexpIndex(p, e));
+        }
     }
 
     virtual antlrcpp::Any visitFunccallexp(NorbertParser::FunccallexpContext *ctx) override {

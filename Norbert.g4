@@ -11,7 +11,9 @@ stat
   | 'return' exp? #returnstat
   ;
 
-lexp : ID ('[' exp ']')?;
+lexp
+  : ID
+  | lexp '[' exp ']';
 
 exp
   : 'true'                            #trueexp

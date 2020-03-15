@@ -108,6 +108,9 @@ private:
     void binOp(binopint fi, binopfloat ff);
     void binOpRel(binopint fi, binopfloat ff);
 
+    void printOpStack();
+    void printStack();
+
     std::ostream &out;
 
     void printf();

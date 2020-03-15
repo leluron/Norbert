@@ -8,31 +8,29 @@ class File;
 class Stat;
 class Exp;
 class Lexp;
-class LexpSuffix;
 
 using namespace std;
 
 using statp = shared_ptr<Stat>;
 using expp  = shared_ptr<Exp >;
-using lexpsuffixp = shared_ptr<LexpSuffix>;
-
-class LexpSuffix {
-public:
-    virtual ~LexpSuffix() {}
-};
-
-class IndexSuffix : public LexpSuffix {
-public:
-    IndexSuffix(expp i) : i(i) {}
-    expp i;
-};
+using lexpp = shared_ptr<Lexp>;
 
 class Lexp {
-
 public:
-    Lexp(string name, lexpsuffixp suffix) : name(name), suffix(suffix) {}
+    virtual ~Lexp() {}
+};
+
+class LexpId : public Lexp {
+public:
+    LexpId(string name) : name(name) {}
     string name;
-    lexpsuffixp suffix;
+};
+
+class LexpIndex : public Lexp {
+public:
+    LexpIndex(lexpp l,expp e) : l(l), e(e) {}
+    lexpp l;
+    expp e;
 };
 
 class File {
@@ -50,8 +48,8 @@ public:
 class AssignStat : public Stat {
 
 public:
-    AssignStat(Lexp left, expp right) : left(left), right(right) {}
-    Lexp left;
+    AssignStat(lexpp left, expp right) : left(left), right(right) {}
+    lexpp left;
     expp right;
 };
 

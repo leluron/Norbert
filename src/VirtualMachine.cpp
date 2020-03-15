@@ -87,13 +87,11 @@ void VirtualMachine::step() {
         case Call: {
             tie(t,d) = extract(popOpStack());
             // TODO implement for functions and closures
-            /*
-            if (t != Funcptr) throw runtime_error("Can't call a non-function pointer");
-
-            addressStack.push(PC);
-            PC = asPtr(d);
-            localVarStack.push({});
-            */
+            auto addr = asPtr(d);
+            if (t == Pointer && addr >= CODE_START && addr < CODE_END) { 
+                newStack(PC);
+                PC = addr;
+            }
             break;
         }
         case CallExt: {
@@ -303,7 +301,7 @@ WORD VirtualMachine::getStackPtr(int index) {
 
 void VirtualMachine::list_create() {
     auto addr = alloc(2);
-    memory[addr] = makeValue(Int, 0);
+    memory[addr] = 0;
     memory[addr+1] = -1;
     pushOpStack(makeValue(List, addr));
 }
@@ -344,11 +342,46 @@ void VirtualMachine::list_resize() {
         contents[i] = memory[memory[d+1]+i];
     }
 
-    vmfree(memory[d+1]);
+    if (memory[d+1] != -1) vmfree(memory[d+1]);
     memory[d] = d2;
     memory[d+1] = alloc(d2);
     for (int j=0;j<d2;j++) {
         memory[memory[d+1]+j] = contents[j];
     }
     pushOpStack(makeValue(t,d));
+}
+
+void printValue(WORD v) {
+    Type t; int32_t d;
+    tie(t,d) = extract(v);
+    if (t == Nil) cout << "nil";
+    else if (t == Int) cout << "int";
+    else if (t == Float) cout << "float";
+    else if (t == Function) cout << "func";
+    else if (t == Pointer) cout << "ptr";
+    else if (t == Closure) cout << "closure";
+    else if (t == List) cout << "list";
+    else if (t == Tuple) cout << "tuple";
+    else if (t == Map) cout << "map";
+
+    cout << " ";
+    if (t == Float) cout << asfloat(d);
+    else cout << d;
+    cout << endl;
+}
+
+void VirtualMachine::printOpStack() {
+    cout << "[" << endl;
+    for (int i=opStackFrame-1;i>=0;i--) {
+        cout << "\t"; printValue(memory[OP_STACK_START+i]); cout << endl;
+    }
+    cout << "]" << endl;
+}
+
+void VirtualMachine::printStack() {
+    cout << "[" << endl;
+    for (int i=0;i<LOCAL_VARS_SIZE;i++) {
+        cout << "\t"; printValue(memory[STACK_START+LOCAL_VARS_SIZE*(stackFrame-1)+i]); cout << endl;
+    }
+    cout << "]" << endl;
 }
