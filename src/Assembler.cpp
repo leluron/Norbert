@@ -7,14 +7,14 @@
 using namespace std;
 using namespace antlr4;
 
-using addressmap = std::map<std::string, uint64_t>;
+using addressmap = std::map<std::string, PTR>;
 
 addressmap stdlib = {
     {"printf", Printf},
 };
 
-vector<int64_t> stringArrayToCode(std::string str) {
-    vector<int64_t> s;
+vmcode stringArrayToCode(std::string str) {
+    vmcode s;
     for (int i=1;i<str.size()-1;i++) {
         char c = str[i];
         if (c == '\\') {
@@ -30,7 +30,6 @@ vector<int64_t> stringArrayToCode(std::string str) {
         }
     }
     s.push_back('\0');
-    if (s.size()%2 == 1) s.push_back('\0');
     return s;
 }
 
@@ -69,7 +68,7 @@ private:
 };
 
 uint64_t makeInstruction(Instruction i0, int32_t i1) {
-    return uint64_t(i0) << 32 | i1;
+    return uint64_t(i0) << 24 | (i1&0xffffff);
 }
 
 class Assembler : BytecodeBaseVisitor {
@@ -146,8 +145,6 @@ public:
             else if (op == "tuple_concat") i0 = TupleConcat;
             else if (op == "tuple_access_ptr") i0 = TupleAccessPtr;
             else if (op == "tuple_access") i0 = TupleAccess;
-            else if (op == "function_create") i0 = FunctionCreate;
-            else if (op == "function_call") i0 = FunctionCall;
             else if (op == "closure_create") i0 = ClosureCreate;
             else if (op == "closure_call") i0 = ClosureCall;
             else if (op == "map_create") i0 = MapCreate;
@@ -155,20 +152,19 @@ public:
             else if (op == "map_access_ptr") i0 = MapAccessPtr;
             else if (op == "map_access") i0 = MapAccess;
 
-            int32_t i1 = Noop;
+            WORD i1 = 0;
             if (ctx->intliteral()) i1 = visit(ctx->intliteral());
-            else if (ctx->floatliteral()) i1 = visit(ctx->floatliteral());
             else if (ctx->name()) i1 = addresses[visit(ctx->name())];
 
             code.push_back(makeInstruction(i0, i1));
 
         } else if (ctx->stringarray()) {
-            vector<int64_t> s = visit(ctx->stringarray());
+            vmcode s = visit(ctx->stringarray());
             code.insert(code.end(), s.begin(), s.end());
         } else if (ctx->intl) {
-            code.push_back(visit(ctx->intl).as<int64_t>());
+            code.push_back(visit(ctx->intl).as<WORD>());
         } else if (ctx->floatl) {
-            code.push_back(visit(ctx->floatl).as<int64_t>());
+            code.push_back(visit(ctx->floatl).as<WORD>());
         }
         return nullptr;
     }
@@ -176,9 +172,9 @@ public:
     virtual antlrcpp::Any visitIntliteral(BytecodeParser::IntliteralContext *ctx) override {
         stringstream ss;
         ss << ctx->INT()->getText();
-        int32_t val;
+        int val;
         ss >> val;
-        return val;
+        return *(WORD*)&val;
     }
 
     virtual antlrcpp::Any visitFloatliteral(BytecodeParser::FloatliteralContext *ctx) override {
@@ -186,7 +182,7 @@ public:
         ss << ctx->FLOAT()->getText();
         float val;
         ss >> val;
-        return *(int32_t*)&val;
+        return *(WORD*)&val;
     }
 
     virtual antlrcpp::Any visitName(BytecodeParser::NameContext *ctx) override {

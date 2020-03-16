@@ -8,7 +8,6 @@ instr
 label: name ':';
 op
     : opcode intliteral
-    | opcode floatliteral
     | opcode name
     | opcode
     | stringarray
@@ -64,8 +63,6 @@ opcode
     | 'tuple_concat'
     | 'tuple_access_ptr'
     | 'tuple_access'
-    | 'function_create'
-    | 'function_call'
     | 'closure_create'
     | 'closure_call'
     | 'map_create'

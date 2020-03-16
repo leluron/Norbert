@@ -90,15 +90,32 @@ public:
 
     void visit(expp eb) {
         if (auto e = dynamic_pointer_cast<IntExp>(eb)) {
-            code << "load_int " << e->value << endl;
+            auto it = intToLbl.find(e->value);
+            string lbl;
+            if (it == intToLbl.end()) {
+                lbl = newlabel();
+                intToLbl[e->value] = lbl;
+                constants << lbl << ": " << e->value << endl;
+            } else {
+                lbl = intToLbl[e->value];
+            }
+            code << "load_int " << lbl << endl;
         } else if (auto e = dynamic_pointer_cast<FloatExp>(eb)) {
-            code << "load_float " << showpoint << e->value << endl;
+            auto it = floatToLbl.find(e->value);
+            string lbl;
+            if (it == floatToLbl.end()) {
+                lbl = newlabel();
+                floatToLbl[e->value] = lbl;
+                constants << lbl << ": " << fixed << e->value << endl;
+            } else {
+                lbl = floatToLbl[e->value];
+            }
+            code << "load_float " << lbl << endl;
         } else if (auto e = dynamic_pointer_cast<StringExp>(eb)) {
             auto it = strToLbl.find(e->value);
             string lbl;
             if (it == strToLbl.end()) {
                 lbl = newlabel();
-                lblToStr[lbl] = e->value;
                 strToLbl[e->value] = lbl;
                 constants << lbl << ": " << e->value << endl;
             } else {
@@ -174,6 +191,8 @@ private:
     stringbuf constantsstr;
     ostream code{&str};
     ostream constants{&constantsstr};
-    map<string, string> lblToStr;
+
     map<string, string> strToLbl;
+    map<int, string> intToLbl;
+    map<float, string> floatToLbl;
 };

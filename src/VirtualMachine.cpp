@@ -4,64 +4,65 @@
 
 using namespace std;
 
-float asfloat(int32_t a) {
+float asfloat(WORD a) {
     return *(float*)(&a);
 }
 
-int32_t asint(float a) {
-    return *(int32_t*)&a;
+WORD asint(float a) {
+    return *(WORD*)&a;
 }
 
-WORD makeValue(Type t, int32_t d) {
-    return WORD(t) << 32 | d;
+DWORD makeValue(Type t, WORD d) {
+    return DWORD(t) << 32 | d;
 }
 
-tuple<Type, int32_t> extract(WORD a) {
+tuple<Type, int32_t> extract(DWORD a) {
+    WORD b = (a >> 0) & 0xffffffff;
     return make_tuple(
         Type((a>>32) & 0xffffffff),
-        int32_t((a >> 0) & 0xffffffff));
+        *(int32_t*)&b);
 }
 
-uint32_t asPtr(int32_t a) {
-    return *(uint32_t*)&a;
+PTR asPtr(int32_t a) {
+    return a & 0xffffff;
 }
 
-tuple<Instruction, int32_t> decode(WORD i) {
+tuple<Instruction, uint32_t> decode(WORD i) {
     return make_tuple(
-        Instruction((i>>32) & 0xffffffff),
-        int32_t((i >> 0) & 0xffffffff));
+        Instruction((i>>24) & 0xff),
+        uint32_t((i >> 0) & 0xffffff));
 }
 
 void VirtualMachine::step() {
-    Instruction i0; int32_t i1;
+    Instruction i0; uint32_t i1;
     tie(i0, i1) = decode(memory[PC]);
     PC++;
 
-    WORD v;
+    DWORD v;
     Type t,t2; int32_t d, d2;
 
     switch (i0) {
         case Noop: break;
-        case LoadInt: pushOpStack(makeValue(Int, i1)); break;
-        case LoadFloat: pushOpStack(makeValue(Float, i1)); break;
+        case LoadInt: pushOpStack(makeValue(Int, memory[i1])); break;
+        case LoadFloat: pushOpStack(makeValue(Float, memory[i1])); break;
         case LoadStr: pushOpStack(makeValue(String, i1)); break;
         case LoadVarAddr: 
             pushOpStack(makeValue(Pointer, getStackPtr(i1))); break;
         case LoadVar:
-            pushOpStack(memory[getStackPtr(i1)]); break;
+            pushOpStack(getDword(getStackPtr(i1))); break;
         case LoadMem :
             tie(t,d) = extract(popOpStack());
             if (t != Pointer) throw runtime_error("Can't read from memory from a non-pointer");
-            pushOpStack(memory[asPtr(d)]);
+            pushOpStack(getDword(asPtr(d)));
             break;
         case StoreMem:
             v = popOpStack();
             tie(t,d) = extract(popOpStack());
             if (t != Pointer) throw runtime_error("Can't write to memory with a non-pointer");
-            memory[asPtr(d)] = v;
+            setDword(asPtr(d), v);
             break;
         case StoreVar:
-            memory[getStackPtr(i1)] = popOpStack(); break;
+            setDword(getStackPtr(i1), popOpStack()); break;
         case Call: {
             auto addr = asPtr(i1);
             if (addr >= CODE_START && addr < CODE_END) { 
@@ -71,7 +72,7 @@ void VirtualMachine::step() {
             break;
         }
         case CallExt: {
-            auto func = stdlib[asPtr(i1)];
+            auto func = stdlib[(ReservedFuncs)i1];
             (this->*func)();
             break;
         }
@@ -164,11 +165,12 @@ void VirtualMachine::step() {
         case Neq:
             binOpRel([](int32_t a, int32_t b){return a!=b;},[](float a, float b){return a!=b;}); break;
         case Inc:
-            tie(t,d) = extract(memory[getStackPtr(i1)]);
+            tie(t,d) = extract(getDword(getStackPtr(i1)));
             tie(t2,d2) = extract(popOpStack());
             if (t == Int && t2 == Int) {
-                memory[getStackPtr(i1)] = d+d2;
+                setDword(getStackPtr(i1),makeValue(Int, d+d2));
             } else throw runtime_error("inc supported only for ints");
+            break;
         case ListCreate: list_create(i1); break;
         case ListAccessPtr: list_access_ptr(); break;
         case ListAccess: list_access(); break;
@@ -179,7 +181,7 @@ void VirtualMachine::step() {
 
 void VirtualMachine::run() {
     newStack();
-    while (PC != -1 && PC < CODE_END) {
+    while (PC != ENDPC && PC < CODE_END) {
         step();
     }
 }
@@ -203,6 +205,7 @@ void VirtualMachine::binOp(binopint fi, binopfloat ff) {
     tie(t,d) = extract(popOpStack());
     tie(t2,d2) = extract(popOpStack());
     int32_t res;
+    if (t == Nil || t2 == Nil) throw runtime_error("Can't binop with nil");
     if (t == Float) {
         if (t2 == Float) res = asint(ff(asfloat(d),asfloat(d2)));
         else res = asint(ff(asfloat(d),(float)d2));
@@ -218,6 +221,7 @@ void VirtualMachine::binOpRel(binopint fi, binopfloat ff) {
     tie(t,d) = extract(popOpStack());
     tie(t2,d2) = extract(popOpStack());
     int32_t res;
+    if (t == Nil || t2 == Nil) throw runtime_error("Can't binop with nil");
     if (t == Float) {
         if (t2 == Float) res = asint(ff(asfloat(d),asfloat(d2)));
         else res = asint(ff(asfloat(d),(float)d2));
@@ -256,59 +260,59 @@ void VirtualMachine::printf() {
     }
 }
 
-void VirtualMachine::newStack(WORD addr) {
+void VirtualMachine::newStack(PTR addr) {
     memory[ADDR_STACK_START + stackFrame] = addr;
     stackFrame += 1;
     if (stackFrame == MAX_STACK_SIZE) throw runtime_error("Stack overflow");
 }
 
-WORD VirtualMachine::popStack() {
+PTR VirtualMachine::popStack() {
     if (stackFrame == 0) throw runtime_error("Stack underflow");
     stackFrame -= 1;
     return memory[ADDR_STACK_START + stackFrame];
 }
 
-void VirtualMachine::pushOpStack(WORD v) {
+void VirtualMachine::pushOpStack(DWORD v) {
     if (opStackFrame == MAX_OP_STACK_SIZE-1) throw runtime_error("Operand stack overflow");
-    memory[OP_STACK_START+(opStackFrame++)] = v;
+    setDword(OP_STACK_START+2*(opStackFrame++), v);
 }
 
-WORD VirtualMachine::popOpStack() {
+DWORD VirtualMachine::popOpStack() {
     if (opStackFrame == 0) throw runtime_error("Operand stack underflow");
-    return memory[OP_STACK_START+(--opStackFrame)];
+    return getDword(OP_STACK_START+2*(--opStackFrame));
 }
 
-WORD VirtualMachine::getStackPtr(int index) {
+PTR VirtualMachine::getStackPtr(int index) {
     if (index < 0 || index >= LOCAL_VARS_SIZE) throw runtime_error("Invalid stack slot");
-    return STACK_START + (stackFrame-1)*LOCAL_VARS_SIZE+index;
+    return STACK_START + 2*((stackFrame-1)*LOCAL_VARS_SIZE+index);
 }
 
 void VirtualMachine::list_create(int size) {
-    auto addr = alloc(1+size);
+    auto addr = alloc(1+size*2);
     memory[addr] = size;
     for (int i=0;i<size;i++)
-        memory[addr+1+i] = popOpStack();
+        setDword(addr+1+i*2, popOpStack());
     pushOpStack(makeValue(List, addr));
 }
 
-void VirtualMachine::list_concat(int32_t d, int32_t d2) {
+void VirtualMachine::list_concat(PTR d, PTR d2) {
     int len1 = memory[d];
     int len2 = memory[d2];
     int new_size = len1+len2;
-    auto addr = alloc(1+new_size);
+    auto addr = alloc(1+new_size*2);
     memory[addr] = new_size;
-    memcpy(&memory[addr+1]     , &memory[d +1], len1*sizeof(uint64_t));
-    memcpy(&memory[addr+1+len1], &memory[d2+1], len1*sizeof(uint64_t));
+    memcpy(&memory[addr+1]       , &memory[d +1], len1*sizeof(DWORD));
+    memcpy(&memory[addr+1+len1*2], &memory[d2+1], len2*sizeof(DWORD));
     pushOpStack(makeValue(List, addr));
 }
 
-void VirtualMachine::list_add(int32_t d, uint64_t v) {
+void VirtualMachine::list_add(PTR d, DWORD v) {
     int len1 = memory[d];
     int new_size = len1+1;
-    auto addr = alloc(1+new_size);
+    auto addr = alloc(1+new_size*2);
     memory[addr] = new_size;
-    memcpy(&memory[addr+1], &memory[d+1], len1*sizeof(uint64_t));
-    memory[addr+1+len1] = v;
+    memcpy(&memory[addr+1], &memory[d+1], len1*sizeof(DWORD));
+    setDword(addr+1+len1*2, v);
     pushOpStack(makeValue(List, addr));
 }
 
@@ -321,14 +325,14 @@ void VirtualMachine::list_access_ptr() {
     int len = memory[d];
 
     if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
-    pushOpStack(makeValue(Pointer, d+1+d2));
+    pushOpStack(makeValue(Pointer, d+1+d2*2));
 }
 
 void VirtualMachine::list_access() {
     list_access_ptr();
     int32_t d;
     tie (ignore,d) = extract(popOpStack());
-    pushOpStack(memory[d]);
+    pushOpStack(getDword(d));
 }
 
 void VirtualMachine::list_length() {
@@ -338,13 +342,13 @@ void VirtualMachine::list_length() {
 }
 
 
-void printValue(WORD v) {
+void printValue(DWORD v) {
     Type t; int32_t d;
     tie(t,d) = extract(v);
     if (t == Nil) cout << "nil";
     else if (t == Int) cout << "int";
     else if (t == Float) cout << "float";
-    else if (t == Function) cout << "func";
+    else if (t == String) cout << "string";
     else if (t == Pointer) cout << "ptr";
     else if (t == Closure) cout << "closure";
     else if (t == List) cout << "list";
@@ -360,7 +364,7 @@ void printValue(WORD v) {
 void VirtualMachine::printOpStack() {
     cout << "[" << endl;
     for (int i=opStackFrame-1;i>=0;i--) {
-        cout << "\t"; printValue(memory[OP_STACK_START+i]); cout << endl;
+        cout << "\t"; printValue(getDword(OP_STACK_START+i*2)); cout << endl;
     }
     cout << "]" << endl;
 }
@@ -368,7 +372,21 @@ void VirtualMachine::printOpStack() {
 void VirtualMachine::printStack() {
     cout << "[" << endl;
     for (int i=0;i<LOCAL_VARS_SIZE;i++) {
-        cout << "\t"; printValue(memory[STACK_START+LOCAL_VARS_SIZE*(stackFrame-1)+i]); cout << endl;
+        cout << "\t"; printValue(getDword(STACK_START+2*(LOCAL_VARS_SIZE*(stackFrame-1)+i))); cout << endl;
     }
     cout << "]" << endl;
+}
+  
+void VirtualMachine::setDword(PTR addr, DWORD v) {
+    memcpy(&memory[addr], &v, sizeof(DWORD));
+}
+
+DWORD VirtualMachine::getDword(PTR addr) {
+    DWORD v;
+    memcpy(&v, &memory[addr], sizeof(DWORD));
+    return v;
+}
+
+void VirtualMachine::gc() {
+
 }

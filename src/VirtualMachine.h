@@ -7,28 +7,31 @@
 #include <cstring>
 #include <functional>
 
-#define WORD uint64_t
+#define WORD uint32_t
+#define DWORD uint64_t
+#define PTR uint32_t
 
-enum Type : int32_t {
+#define ENDPC 0xffffff
+
+enum Type : int8_t {
     /* Name      desc */
     Nil = 0,
     Int,      
     Float,     
     String,    // ptr to str const in code or str in heap
     Pointer,   // ptr to anywhere
-    Function,  // ptr to {code ptr, num_args}
-    Closure,   // ptr to {code ptr, num_args, num_captured, value...}
-    List,      // ptr to {num_elements, value...}
+    Closure,   // ptr to {code ptr, num_captured, value...}
+    List,      // ptr to {num_elements, type, value...}
     Tuple,     // ptr to {num_elements, value...}
     Map        // ptr to {num_pairs, (value, value)...}
 };
 
-enum Instruction : int32_t {
+enum Instruction : int8_t {
     /* Name        i1           stack                     desc  */
     Noop = 0,   // 
-    LoadInt,    // int       - () -> int
-    LoadFloat,  // float     - () -> float
-    LoadStr,    // strptr    - () -> string
+    LoadInt,    // ptr       - () -> int
+    LoadFloat,  // ptr       - () -> float
+    LoadStr,    // ptr       - () -> string
     LoadVarAddr,// int       - () -> ptr 
     LoadVar,    // int       - () -> value
     LoadMem,    //           - (ptr) -> value
@@ -68,9 +71,6 @@ enum Instruction : int32_t {
     TupleAccessPtr, // int    - (tuple) -> ptr
     TupleAccess,    // int    - (tuple) -> value
 
-    FunctionCreate, // ptr, size - () -> function
-    FunctionCall,   //           - (function, value...) -> value|closure 
-
     ClosureCreate,  // ptr       - (value...) -> closure
     ClosureCall,    //           - (closure, value...) -> value|closure
 
@@ -105,9 +105,9 @@ public:
 
     const static WORD CODE_START         = 0;
     const static WORD STACK_START        = CODE_START + CODE_SIZE;
-    const static WORD ADDR_STACK_START   = STACK_START + LOCAL_VARS_SIZE*MAX_STACK_SIZE;
+    const static WORD ADDR_STACK_START   = STACK_START + LOCAL_VARS_SIZE*MAX_STACK_SIZE*2;
     const static WORD OP_STACK_START     = ADDR_STACK_START + MAX_STACK_SIZE;
-    const static WORD HEAP_START         = OP_STACK_START + MAX_OP_STACK_SIZE;
+    const static WORD HEAP_START         = OP_STACK_START + MAX_OP_STACK_SIZE*2;
 
     const static WORD CODE_END           = STACK_START;
     const static WORD STACK_END          = ADDR_STACK_START;
@@ -116,25 +116,27 @@ public:
     const static WORD HEAP_END           = TOTAL_SIZE;
 
 private:
-    uint32_t PC = CODE_START;
-    uint32_t allocStart = HEAP_START;
+    PTR PC = CODE_START;
+    PTR allocStart = HEAP_START;
     WORD* memory = new WORD[TOTAL_SIZE];
-    std::map<uint32_t, void (VirtualMachine::*)()> stdlib = {
+    std::map<ReservedFuncs, void (VirtualMachine::*)()> stdlib = {
         { Printf, &VirtualMachine::printf},
     };
     int stackFrame = 0;
     int opStackFrame = 0;
 
     bool isPrim(Type t) { return t==Nil || t==Int || t==Float || t==String;}
-    void newStack(WORD addr=-1);
-    WORD popStack();
-    void pushOpStack(WORD v);
-    WORD popOpStack();
-    WORD getStackPtr(int index);
+    void newStack(PTR addr=ENDPC);
+    PTR popStack();
+    void pushOpStack(DWORD v);
+    DWORD popOpStack();
+    PTR getStackPtr(int index);
 
+    void setDword(PTR addr, DWORD v);
+    DWORD getDword(PTR addr);
 
-    uint32_t alloc(int size);
-    void vmfree(uint32_t addr);
+    PTR alloc(int size);
+    void vmfree(PTR addr);
 
     using binopint   = std::function<int32_t(int32_t, int32_t)>;
     using binopfloat = std::function<float(float, float)>;
@@ -145,6 +147,8 @@ private:
     void printOpStack();
     void printStack();
 
+    void gc();
+
     std::ostream &out;
 
     void printf();
@@ -153,6 +157,6 @@ private:
     void list_access();
     void list_length();
 
-    void list_concat(int32_t d, int32_t d2);
-    void list_add(int32_t d, uint64_t v);
+    void list_concat(PTR d, PTR d2);
+    void list_add(PTR d, DWORD v);
 };
