@@ -14,8 +14,10 @@ public:
             visit(s);
         }
         code << "return" << endl;
+        /* DEBUG */
         cout << str.str() << endl;
         cout << constantsstr.str() << endl;
+        /*       */
         return assemble(str.str() + constantsstr.str());
     }
 
@@ -44,7 +46,7 @@ public:
             auto endlbl = newlabel();
             code << startlbl << ":" << endl;
             visit(s->cond);
-            code << "not" << endl << "ifjump " << endlbl << endl;
+            code << "ifnjump " << endlbl << endl;
             visit(s->body);
             code << "jump " << startlbl << endl;
             code << endlbl << ":" << endl;
@@ -69,20 +71,10 @@ public:
         if (auto l = dynamic_pointer_cast<LexpId>(lexp)) {
             visitLexpId(l);
         } else if (auto l = dynamic_pointer_cast<LexpIndex>(lexp)) {
-            visit2(l->l);
-            visit(l->e);
-            code << "call_ext list_access_ptr" << endl;
-        }
-    }
-
-    void visit2(lexpp lexp) {
-        if (auto l = dynamic_pointer_cast<LexpId>(lexp)) {
-            visitLexpId(l);
-        } else if (auto l = dynamic_pointer_cast<LexpIndex>(lexp)) {
-            visit2(l->l);
-            visit(l->e);
-            code << "call_ext list_access_ptr" << endl;
+            visit(l->l);
             code << "load_mem" << endl;
+            visit(l->e);
+            code << "list_access_ptr" << endl;
         }
     }
 
@@ -91,11 +83,9 @@ public:
         auto it = locals.find(name);
         int id;
         if (it == locals.end()) {
-            locals[name] = localId;
-            id = localId;
-            localId += 1;
+            throw runtime_error("Can't find local");
         } else id = it->second;
-        code << "load_var " << id << endl;
+        code << "load_var_addr " << id << endl;
     }
 
     void visit(expp eb) {
@@ -140,6 +130,7 @@ public:
                 else if (n==">=") code << "gteq" << endl;
                 else if (n=="==") code << "eq" << endl;
                 else if (n=="!=") code << "neq" << endl;
+                else if (n=="len") code << "list_length" << endl;
                 // stdlib
                 else code << "call_ext " << n << endl;
             } else {
@@ -157,22 +148,12 @@ public:
             visit(e->then);
             code << endlbl << ":" << endl;
         } else if (auto e = dynamic_pointer_cast<ListExp>(eb)) {
-            code << "call_ext list_create" << endl;
-            if (e->elements.size() > 0) {
-                code << "load_int " << e->elements.size() << endl;
-                code << "call_ext list_resize" << endl;
-                for (int i=0;i<e->elements.size();i++) {
-                    code << "load_int " << i << endl;
-                    code << "call_ext list_access_ptr" << endl;
-                    visit(e->elements[i]);
-                    code << "store_mem" << endl;
-                }
-            }
+            for (int i=e->elements.size()-1;i>=0;i--) visit(e->elements[i]);
+            code << "list_create " << e->elements.size() << endl;
         } else if (auto e = dynamic_pointer_cast<IndexExp>(eb)) {
             visit(e->left);
             visit(e->index);
-            code << "call_ext list_access_ptr" << endl;
-            code << "load_mem" << endl;
+            code << "list_access" << endl;
         }
     }
 

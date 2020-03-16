@@ -11,10 +11,6 @@ using addressmap = std::map<std::string, uint64_t>;
 
 addressmap stdlib = {
     {"printf", Printf},
-    {"list_create", ListCreate},
-    {"list_delete", ListDelete},
-    {"list_access_ptr", ListAccessPtr},
-    {"list_resize", ListResize},
 };
 
 vector<int64_t> stringArrayToCode(std::string str) {
@@ -114,16 +110,17 @@ public:
             else if (op == "load_int") i0 = LoadInt;
             else if (op == "load_float") i0 = LoadFloat;
             else if (op == "load_str") i0 = LoadStr;
+            else if (op == "load_var_addr") i0 = LoadVarAddr;
             else if (op == "load_var") i0 = LoadVar;
             else if (op == "load_mem") i0 = LoadMem;
-            else if (op == "store_var") i0 = StoreVar;
             else if (op == "store_mem") i0 = StoreMem;
-            else if (op == "alloc") i0 = Alloc;
-            else if (op == "free") i0 = Free;
+            else if (op == "store_var") i0 = StoreVar;
             else if (op == "call") i0 = Call;
             else if (op == "call_ext") i0 = CallExt;
+            else if (op == "pop") i0 = Pop;
             else if (op == "return") i0 = Return;
             else if (op == "ifjump") i0 = IfJump;
+            else if (op == "ifnjump") i0 = IfNJump;
             else if (op == "jump") i0 = Jump;
             else if (op == "not") i0 = Not;
             else if (op == "and") i0 = And;
@@ -140,6 +137,23 @@ public:
             else if (op == "gteq") i0 = Gteq;
             else if (op == "eq") i0 = Eq;
             else if (op == "neq") i0 = Neq;
+            else if (op == "inc") i0 = Inc;
+            else if (op == "list_create") i0 = ListCreate;
+            else if (op == "list_access_ptr") i0 = ListAccessPtr;
+            else if (op == "list_access") i0 = ListAccess;
+            else if (op == "list_length") i0 = ListLength;
+            else if (op == "tuple_create") i0 = TupleCreate;
+            else if (op == "tuple_concat") i0 = TupleConcat;
+            else if (op == "tuple_access_ptr") i0 = TupleAccessPtr;
+            else if (op == "tuple_access") i0 = TupleAccess;
+            else if (op == "function_create") i0 = FunctionCreate;
+            else if (op == "function_call") i0 = FunctionCall;
+            else if (op == "closure_create") i0 = ClosureCreate;
+            else if (op == "closure_call") i0 = ClosureCall;
+            else if (op == "map_create") i0 = MapCreate;
+            else if (op == "map_add") i0 = MapAdd;
+            else if (op == "map_access_ptr") i0 = MapAccessPtr;
+            else if (op == "map_access") i0 = MapAccess;
 
             int32_t i1 = Noop;
             if (ctx->intliteral()) i1 = visit(ctx->intliteral());

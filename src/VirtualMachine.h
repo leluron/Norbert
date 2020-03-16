@@ -10,42 +10,79 @@
 #define WORD uint64_t
 
 enum Type : int32_t {
-    Nil = 0, Int, Float, String, Pointer, Function, Closure, List, Tuple, Map
+    /* Name      desc */
+    Nil = 0,
+    Int,      
+    Float,     
+    String,    // ptr to str const in code or str in heap
+    Pointer,   // ptr to anywhere
+    Function,  // ptr to {code ptr, num_args}
+    Closure,   // ptr to {code ptr, num_args, num_captured, value...}
+    List,      // ptr to {num_elements, value...}
+    Tuple,     // ptr to {num_elements, value...}
+    Map        // ptr to {num_pairs, (value, value)...}
 };
 
 enum Instruction : int32_t {
-    Noop = 0,
-    LoadInt, LoadFloat, LoadStr,
-    LoadVar, LoadMem,
-    StoreVar, StoreMem,
-    Alloc,
-    Free,
-    Call,
-    CallExt,
-    Return,
-    IfJump,
-    Jump,
-    Pop,
-    Not,
-    And,
-    Or,
-    Usub,  
-    Mul, 
-    Div, 
-    Mod,
-    Add, 
-    Sub, 
-    Lteq, 
-    Lt, 
-    Gt, 
-    Gteq, 
-    Eq, 
-    Neq, 
+    /* Name        i1           stack                     desc  */
+    Noop = 0,   // 
+    LoadInt,    // int       - () -> int
+    LoadFloat,  // float     - () -> float
+    LoadStr,    // strptr    - () -> string
+    LoadVarAddr,// int       - () -> ptr 
+    LoadVar,    // int       - () -> value
+    LoadMem,    //           - (ptr) -> value
+    StoreMem,   //           - (ptr, value) ->
+    StoreVar,   // int       - (value) ->
+    Call,       // ptr       - () ->
+    CallExt,    // int       - () ->
+    Pop,        //           - (value) ->
+    Return,     //           - () ->
+    IfJump,     // ptr       - (int) ->
+    IfNJump,    // ptr       - (int) ->
+    Jump,       // ptr       - () ->
+    Not,        //           - (int) -> value
+    And,        //           - (int, int) -> value
+    Or,         //           - (int, int) -> value
+    Usub,       //           - (value)        -> value
+    Mul,        //           - (value, value) -> value 
+    Div,        //           - (value, value) -> value
+    Mod,        //           - (int, int) -> int
+    Add,        //           - (value, value) -> value
+    Sub,        //           - (value, value) -> value
+    Lteq,       //           - (int, int) -> int
+    Lt,         //           - (int, int) -> int
+    Gt,         //           - (int, int) -> int
+    Gteq,       //           - (int, int) -> int
+    Eq,         //           - (int, int) -> int
+    Neq,        //           - (int, int) -> int
+    Inc,        // index     - (value)        ->
+
+    ListCreate,    // size   - (value...)   -> list
+    ListAccessPtr, //        - (list, int)  -> ptr
+    ListAccess,    //        - (list, int)  -> value
+    ListLength,    //        - (list)       -> int
+
+    TupleCreate,    // size   - (value...)     -> tuple
+    TupleConcat,    //        - (tuple, tuple) -> tuple
+    TupleAccessPtr, // int    - (tuple) -> ptr
+    TupleAccess,    // int    - (tuple) -> value
+
+    FunctionCreate, // ptr, size - () -> function
+    FunctionCall,   //           - (function, value...) -> value|closure 
+
+    ClosureCreate,  // ptr       - (value...) -> closure
+    ClosureCall,    //           - (closure, value...) -> value|closure
+
+    MapCreate,      // size  - (value...) -> map
+    MapAdd,         //       - (map, value, value) -> map
+    MapAccessPtr,   //       - (map, value) -> ptr
+    MapAccess,      //       - (map, value) -> value
+
 };
 
 enum ReservedFuncs : uint32_t {
     Printf, 
-    ListCreate, ListDelete, ListResize, ListAccessPtr
 };
 
 using vmcode = std::vector<WORD>;
@@ -84,10 +121,6 @@ private:
     WORD* memory = new WORD[TOTAL_SIZE];
     std::map<uint32_t, void (VirtualMachine::*)()> stdlib = {
         { Printf, &VirtualMachine::printf},
-        { ListCreate, &VirtualMachine::list_create},
-        { ListDelete, &VirtualMachine::list_delete},
-        { ListResize, &VirtualMachine::list_resize},
-        { ListAccessPtr, &VirtualMachine::list_access_ptr}
     };
     int stackFrame = 0;
     int opStackFrame = 0;
@@ -99,7 +132,7 @@ private:
     WORD popOpStack();
     WORD getStackPtr(int index);
 
-    
+
     uint32_t alloc(int size);
     void vmfree(uint32_t addr);
 
@@ -115,9 +148,11 @@ private:
     std::ostream &out;
 
     void printf();
-    void list_create();
-    void list_delete();
-    void list_resize();
+    void list_create(int size);
     void list_access_ptr();
+    void list_access();
+    void list_length();
 
+    void list_concat(int32_t d, int32_t d2);
+    void list_add(int32_t d, uint64_t v);
 };

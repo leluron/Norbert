@@ -42,53 +42,29 @@ void VirtualMachine::step() {
 
     switch (i0) {
         case Noop: break;
-        case LoadInt: {
-            pushOpStack(makeValue(Int, i1)); break;
-        }
-        case LoadFloat: {
-            pushOpStack(makeValue(Float, i1)); break;
-        }
-        case LoadStr: {
-            pushOpStack(makeValue(String, i1)); break;
-        }
-        case LoadVar: {
+        case LoadInt: pushOpStack(makeValue(Int, i1)); break;
+        case LoadFloat: pushOpStack(makeValue(Float, i1)); break;
+        case LoadStr: pushOpStack(makeValue(String, i1)); break;
+        case LoadVarAddr: 
+            pushOpStack(makeValue(Pointer, getStackPtr(i1))); break;
+        case LoadVar:
             pushOpStack(memory[getStackPtr(i1)]); break;
-        }
-        case LoadMem : {
+        case LoadMem :
             tie(t,d) = extract(popOpStack());
             if (t != Pointer) throw runtime_error("Can't read from memory from a non-pointer");
             pushOpStack(memory[asPtr(d)]);
             break;
-        }
-        case StoreMem: {
+        case StoreMem:
             v = popOpStack();
             tie(t,d) = extract(popOpStack());
             if (t != Pointer) throw runtime_error("Can't write to memory with a non-pointer");
             memory[asPtr(d)] = v;
             break;
-        }
-        case StoreVar: {
-            v = popOpStack();
-            memory[getStackPtr(i1)] = v;
-            break;
-        }
-        case Alloc: {
-            tie(t,d) = extract(popOpStack());
-            if (t != Int) throw runtime_error("Can't allocate with size of non-int");
-            pushOpStack(alloc(d));
-            break;
-        }
-        case Free : {
-            tie(t,d) = extract(popOpStack());
-            if (isPrim(t)) throw runtime_error("Can't free a primitive");
-            vmfree(d);
-            break;
-        }
+        case StoreVar:
+            memory[getStackPtr(i1)] = popOpStack(); break;
         case Call: {
-            tie(t,d) = extract(popOpStack());
-            // TODO implement for functions and closures
-            auto addr = asPtr(d);
-            if (t == Pointer && addr >= CODE_START && addr < CODE_END) { 
+            auto addr = asPtr(i1);
+            if (addr >= CODE_START && addr < CODE_END) { 
                 newStack(PC);
                 PC = addr;
             }
@@ -99,22 +75,21 @@ void VirtualMachine::step() {
             (this->*func)();
             break;
         }
-        case Return: {
-            PC = popStack();
-            break;
-        }
+        case Return: PC = popStack(); break;
+        case Pop: popOpStack(); break;
         case IfJump: {
             tie(t,d) = extract(popOpStack());
             if (t != Int) throw runtime_error("Can't evaluate a non-int");
             if (d) PC = asPtr(i1);
             break;
         }
-        case Jump: {
-            PC = asPtr(i1); break;
+        case IfNJump: {
+            tie(t,d) = extract(popOpStack());
+            if (t != Int) throw runtime_error("Can't evaluate a non-int");
+            if (!d) PC = asPtr(i1);
+            break;
         }
-        case Pop: {
-            popOpStack(); break;
-        }
+        case Jump: PC = asPtr(i1); break;
         case Not: {
             tie(t,d) = extract(popOpStack());
             if (t != Int) throw runtime_error("Can't `not` with non-int");
@@ -142,14 +117,10 @@ void VirtualMachine::step() {
             pushOpStack(makeValue(t, neg));
             break;
         }
-        case Mul: {
-            binOp([](float a, float b){return a*b;},[](float a, float b){return a*b;});
-            break;
-        }
-        case Div: {
-            binOp([](float a, float b){return a/b;},[](float a, float b){return a/b;});
-            break;
-        }
+        case Mul:
+            binOp([](float a, float b){return a*b;},[](float a, float b){return a*b;});break;
+        case Div:
+            binOp([](float a, float b){return a/b;},[](float a, float b){return a/b;});break;
         case Mod: {
             tie(t,d) = extract(popOpStack());
             tie(t2,d2) = extract(popOpStack());
@@ -158,38 +129,51 @@ void VirtualMachine::step() {
             break;
         }
         case Add: {
-            binOp([](int32_t a, int32_t b){return a+b;},[](float a, float b){return a+b;});
+            tie(t,d) = extract(popOpStack());
+            auto v = popOpStack();
+            tie(t2,d2) = extract(v); 
+
+            if (t == List) {
+                if (t2 == List) list_concat(d,d2);
+                else list_add(d, v);
+            } else {
+                int32_t res;
+                if (t == Float) {
+                    if (t2 == Float) res = asint(asfloat(d)+asfloat(d2));
+                    else res = asint(asfloat(d)+(float)d2);
+                } else {
+                    if (t2 == Float) res = asint((float)d+asfloat(d2));
+                    else res = d+d2;
+                }
+                pushOpStack(makeValue((t==Int && t2==Int)?Int:Float, res));
+            }
             break;
         }
-        case Sub: {
-            binOp([](int32_t a, int32_t b){return a-b;},[](float a, float b){return a-b;});
-            break;
-        }
-        case Lteq: {
-            binOpRel([](int32_t a, int32_t b){return a<=b;},[](float a, float b){return a<=b;});
-            break;
-        }
-        case Lt: {
-            binOpRel([](int32_t a, int32_t b){return a<b;},[](float a, float b){return a<b;});
-            break;
-        }
-        case Gt: {
-            binOpRel([](int32_t a, int32_t b){return a>b;},[](float a, float b){return a>b;});
-            break;
-        }
-        case Gteq: {
-            binOpRel([](int32_t a, int32_t b){return a>=b;},[](float a, float b){return a>=b;});
-            break;
-        }
-        case Eq: {
-            binOpRel([](int32_t a, int32_t b){return a==b;},[](float a, float b){return a==b;});
-            break;
-        }
-        case Neq: {
-            binOpRel([](int32_t a, int32_t b){return a!=b;},[](float a, float b){return a!=b;});
-            break;
-        }
-        default: break;
+        case Sub:
+            binOp([](int32_t a, int32_t b){return a-b;},[](float a, float b){return a-b;});break;
+        case Lteq:
+            binOpRel([](int32_t a, int32_t b){return a<=b;},[](float a, float b){return a<=b;});break;
+        case Lt:
+            binOpRel([](int32_t a, int32_t b){return a<b;},[](float a, float b){return a<b;});break;
+        case Gt:
+            binOpRel([](int32_t a, int32_t b){return a>b;},[](float a, float b){return a>b;});break;
+        case Gteq:
+            binOpRel([](int32_t a, int32_t b){return a>=b;},[](float a, float b){return a>=b;});break;
+        case Eq:
+            binOpRel([](int32_t a, int32_t b){return a==b;},[](float a, float b){return a==b;});break;
+        case Neq:
+            binOpRel([](int32_t a, int32_t b){return a!=b;},[](float a, float b){return a!=b;}); break;
+        case Inc:
+            tie(t,d) = extract(memory[getStackPtr(i1)]);
+            tie(t2,d2) = extract(popOpStack());
+            if (t == Int && t2 == Int) {
+                memory[getStackPtr(i1)] = d+d2;
+            } else throw runtime_error("inc supported only for ints");
+        case ListCreate: list_create(i1); break;
+        case ListAccessPtr: list_access_ptr(); break;
+        case ListAccess: list_access(); break;
+        case ListLength: list_length(); break;
+        default: throw runtime_error("Unsupported opcode");
     }
 }
 
@@ -299,21 +283,33 @@ WORD VirtualMachine::getStackPtr(int index) {
     return STACK_START + (stackFrame-1)*LOCAL_VARS_SIZE+index;
 }
 
-void VirtualMachine::list_create() {
-    auto addr = alloc(2);
-    memory[addr] = 0;
-    memory[addr+1] = -1;
+void VirtualMachine::list_create(int size) {
+    auto addr = alloc(1+size);
+    memory[addr] = size;
+    for (int i=0;i<size;i++)
+        memory[addr+1+i] = popOpStack();
     pushOpStack(makeValue(List, addr));
 }
 
-void VirtualMachine::list_delete() {
-    Type t; int32_t d;
-    tie(t,d) = extract(popOpStack());
-    if (t != List) throw runtime_error("Can't delete a non-list");
-    int len;
-    tie(ignore, len) = extract(memory[d]);
-    if (len > 0) vmfree(memory[d+1]);
-    vmfree(d);
+void VirtualMachine::list_concat(int32_t d, int32_t d2) {
+    int len1 = memory[d];
+    int len2 = memory[d2];
+    int new_size = len1+len2;
+    auto addr = alloc(1+new_size);
+    memory[addr] = new_size;
+    memcpy(&memory[addr+1]     , &memory[d +1], len1*sizeof(uint64_t));
+    memcpy(&memory[addr+1+len1], &memory[d2+1], len1*sizeof(uint64_t));
+    pushOpStack(makeValue(List, addr));
+}
+
+void VirtualMachine::list_add(int32_t d, uint64_t v) {
+    int len1 = memory[d];
+    int new_size = len1+1;
+    auto addr = alloc(1+new_size);
+    memory[addr] = new_size;
+    memcpy(&memory[addr+1], &memory[d+1], len1*sizeof(uint64_t));
+    memory[addr+1+len1] = v;
+    pushOpStack(makeValue(List, addr));
 }
 
 void VirtualMachine::list_access_ptr() {
@@ -322,34 +318,25 @@ void VirtualMachine::list_access_ptr() {
     tie(t,d) = extract(popOpStack());
     if (t != List) throw runtime_error("Can't access from non-list");
     if (t2 != Int) throw runtime_error("Can't index into list with non-int");
-    int len;
-    tie(ignore, len) = extract(memory[d]);
+    int len = memory[d];
 
     if (d2 < 0 || d2 >= len) throw runtime_error("Access out of bounds");
-    pushOpStack(makeValue(t, d));
-    pushOpStack(makeValue(Pointer, memory[d+1]+d2));
+    pushOpStack(makeValue(Pointer, d+1+d2));
 }
 
-void VirtualMachine::list_resize() {
-    Type t,t2; int32_t d,d2;
-    tie(t2,d2) = extract(popOpStack());
+void VirtualMachine::list_access() {
+    list_access_ptr();
+    int32_t d;
+    tie (ignore,d) = extract(popOpStack());
+    pushOpStack(memory[d]);
+}
+
+void VirtualMachine::list_length() {
+    Type t; int32_t d;
     tie(t,d) = extract(popOpStack());
-    if (t != List) throw runtime_error("Can't access from non-list");
-    if (t2 != Int) throw runtime_error("Can't resize list with non-int");
-
-    vector<WORD> contents(d2);
-    for (int i=0;i<memory[d];i++) {
-        contents[i] = memory[memory[d+1]+i];
-    }
-
-    if (memory[d+1] != -1) vmfree(memory[d+1]);
-    memory[d] = d2;
-    memory[d+1] = alloc(d2);
-    for (int j=0;j<d2;j++) {
-        memory[memory[d+1]+j] = contents[j];
-    }
-    pushOpStack(makeValue(t,d));
+    pushOpStack(makeValue(Int, memory[d]));
 }
+
 
 void printValue(WORD v) {
     Type t; int32_t d;
