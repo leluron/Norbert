@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cstring>
 #include <functional>
+#include <memory>
 
 #define WORD uint32_t
 #define DWORD uint64_t
@@ -97,23 +98,24 @@ public:
     void step();
     void run();
     
-    const static WORD CODE_SIZE          = 1 << 12;
-    const static WORD LOCAL_VARS_SIZE    = 1 << 5;
-    const static WORD MAX_STACK_SIZE     = 1 << 6;
-    const static WORD MAX_OP_STACK_SIZE  = 1 << 8;
-    const static WORD TOTAL_SIZE         = 1 << 20;
+    const static int CODE_SIZE          = 1 << 12;
+    const static int LOCAL_VARS_SIZE    = 1 << 5;
+    const static int MAX_STACK_SIZE     = 1 << 6;
+    const static int MAX_OP_STACK_SIZE  = 1 << 8;
+    const static int HEAP_SIZE          = 1 << 16;
 
-    const static WORD CODE_START         = 0;
-    const static WORD STACK_START        = CODE_START + CODE_SIZE;
-    const static WORD ADDR_STACK_START   = STACK_START + LOCAL_VARS_SIZE*MAX_STACK_SIZE*2;
-    const static WORD OP_STACK_START     = ADDR_STACK_START + MAX_STACK_SIZE;
-    const static WORD HEAP_START         = OP_STACK_START + MAX_OP_STACK_SIZE*2;
+    const static PTR CODE_START         = 0;
+    const static PTR STACK_START        = CODE_START + CODE_SIZE;
+    const static PTR ADDR_STACK_START   = STACK_START + LOCAL_VARS_SIZE*MAX_STACK_SIZE*2;
+    const static PTR OP_STACK_START     = ADDR_STACK_START + MAX_STACK_SIZE;
+    const static PTR HEAP_START         = OP_STACK_START + MAX_OP_STACK_SIZE*2;
 
-    const static WORD CODE_END           = STACK_START;
-    const static WORD STACK_END          = ADDR_STACK_START;
-    const static WORD ADDR_STACK_END     = OP_STACK_START;
-    const static WORD OP_STACK_END       = HEAP_START;
-    const static WORD HEAP_END           = TOTAL_SIZE;
+    const static PTR CODE_END           = STACK_START;
+    const static PTR STACK_END          = ADDR_STACK_START;
+    const static PTR ADDR_STACK_END     = OP_STACK_START;
+    const static PTR OP_STACK_END       = HEAP_START;
+    const static PTR HEAP_END           = HEAP_START+HEAP_SIZE;
+    const static PTR TOTAL_SIZE         = HEAP_END;
 
 private:
     PTR PC = CODE_START;
@@ -135,9 +137,6 @@ private:
     void setDword(PTR addr, DWORD v);
     DWORD getDword(PTR addr);
 
-    PTR alloc(int size);
-    void vmfree(PTR addr);
-
     using binopint   = std::function<int32_t(int32_t, int32_t)>;
     using binopfloat = std::function<float(float, float)>;
 
@@ -146,8 +145,6 @@ private:
 
     void printOpStack();
     void printStack();
-
-    void gc();
 
     std::ostream &out;
 
@@ -159,4 +156,40 @@ private:
 
     void list_concat(PTR d, PTR d2);
     void list_add(PTR d, DWORD v);
+
+    const int SMALLEST_ALLOC = 2;
+
+    const int NULLPTR = 0xffffff;
+
+    struct HeapTree {
+        PTR start = HEAP_START;
+        int size = HEAP_SIZE;
+        bool allocated = false;
+        std::shared_ptr<HeapTree> left = nullptr;
+        std::shared_ptr<HeapTree> right = nullptr;
+        HeapTree *parent = nullptr;
+    };
+
+    HeapTree heaproot;
+
+    // ALLOC
+    PTR alloc(int size);
+    PTR alloc(HeapTree *tree, int size);
+
+    // FREE
+    void vmfree(PTR ptr);
+    void merge(HeapTree *tree);
+    HeapTree* find(HeapTree *tree, PTR ptr);
+
+    // memory management
+    // deep free on values
+    // free previous value on assign (store_mem, store_var)
+    // free all values on stack when popping the stack
+
+    void deepFree(DWORD value);
+
+    // functions
+
+    std::map<std::string, PTR> funcNames;
+    std::map<PTR, int> funcNumArgs;
 };

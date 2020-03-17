@@ -59,9 +59,11 @@ void VirtualMachine::step() {
             v = popOpStack();
             tie(t,d) = extract(popOpStack());
             if (t != Pointer) throw runtime_error("Can't write to memory with a non-pointer");
+            deepFree(getDword(asPtr(d)));
             setDword(asPtr(d), v);
             break;
         case StoreVar:
+            deepFree(getStackPtr(i1));
             setDword(getStackPtr(i1), popOpStack()); break;
         case Call: {
             auto addr = asPtr(i1);
@@ -186,20 +188,6 @@ void VirtualMachine::run() {
     }
 }
 
-uint32_t VirtualMachine::alloc(int size) {
-    auto l = allocStart;
-    allocStart += size;
-    if (allocStart > TOTAL_SIZE) {
-        throw runtime_error("Memory overflow");
-    }
-    return l;
-}
-
-void VirtualMachine::vmfree(uint32_t addr) {
-    if (addr < HEAP_START || addr >= HEAP_END)
-        throw runtime_error("Can't free invalid pointer");
-}
-
 void VirtualMachine::binOp(binopint fi, binopfloat ff) {
     Type t,t2; int32_t d,d2;
     tie(t,d) = extract(popOpStack());
@@ -274,6 +262,8 @@ PTR VirtualMachine::popStack() {
 
 void VirtualMachine::pushOpStack(DWORD v) {
     if (opStackFrame == MAX_OP_STACK_SIZE-1) throw runtime_error("Operand stack overflow");
+    for (int i=0;i<LOCAL_VARS_SIZE;i++) deepFree(getStackPtr(i));
+
     setDword(OP_STACK_START+2*(opStackFrame++), v);
 }
 
@@ -387,6 +377,78 @@ DWORD VirtualMachine::getDword(PTR addr) {
     return v;
 }
 
-void VirtualMachine::gc() {
+// ALLOC
 
+PTR VirtualMachine::alloc(int size) {
+    PTR a = alloc(&heaproot, size);
+    if (a == NULLPTR) throw runtime_error("Memory full, can't allocate");
+    return a;
+}
+
+PTR VirtualMachine::alloc(HeapTree *tree, int size) {
+    if (tree->allocated) return NULLPTR;
+    if (!tree->left) {
+        if (size > tree->size/2 || size < SMALLEST_ALLOC) {
+            tree->allocated = true;
+            return tree->start;
+        } else {
+            tree->left  = shared_ptr<HeapTree>(new HeapTree{tree->start             , tree->size/2, false, nullptr, nullptr, tree});
+            tree->right = shared_ptr<HeapTree>(new HeapTree{tree->start+tree->size/2, tree->size/2, false, nullptr, nullptr, tree});
+        }
+    }
+    PTR a = alloc(tree->left.get(), size);
+    if (a == NULLPTR) a = alloc(tree->right.get(), size);
+    return a;
+}
+
+// FREE
+
+void VirtualMachine::vmfree(PTR ptr) {
+    auto tree = find(&heaproot, ptr);
+    if (tree->start == tree->parent->start) tree->parent->left = nullptr;
+    else tree->parent->right = nullptr;
+    merge(tree->parent);
+}
+
+void VirtualMachine::merge(HeapTree *tree) {
+    if (!tree) return;
+    if (!tree->left && !tree->right) {
+        auto l = tree->parent;
+        if (tree->start == tree->parent->start)
+            l->left = nullptr;
+        else 
+            l->right = nullptr;
+        return merge(l);
+    }
+}
+
+VirtualMachine::HeapTree* VirtualMachine::find(HeapTree *tree, PTR ptr) {
+    if (tree->allocated) return tree;
+    if (ptr < tree->start + tree->size/2) 
+        return find(tree->left.get(), ptr);
+    else
+        return find(tree->right.get(), ptr);
+}
+
+// memory management
+// deep free on values
+// free previous value on assign (store_mem, store_var)
+// free all values on stack when popping the stack
+
+void VirtualMachine::deepFree(DWORD value) {
+    Type t; int32_t d;
+    tie(t,d) = extract(value);
+    PTR p = asPtr(d);
+    if (isPrim(t)) return;
+    if (t == Pointer) {
+        if (d > HEAP_START) {
+            deepFree(getDword(p));
+        }
+    } else if (t == List || t == Tuple) {
+        for (int i=0;i<memory[p];i++) {
+            deepFree(getDword(p+i*2));
+        }
+    }
+    // TODO implem for other types
+    if (p >= HEAP_START) vmfree(p);
 }
