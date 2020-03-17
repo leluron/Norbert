@@ -69,7 +69,7 @@ void VirtualMachine::step() {
             auto addr = asPtr(i1);
             if (addr >= CODE_START && addr < CODE_END) { 
                 newStack(PC);
-                for (int i=funcNumArgs[addr]-1;i>=0;i--)
+                for (int i=0;i<funcNumArgs[addr];i++)
                     setDword(getStackPtr(i), popOpStack());
                 PC = addr;
             }
