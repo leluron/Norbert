@@ -53,6 +53,7 @@ public:
 
     virtual antlrcpp::Any visitOp(BytecodeParser::OpContext *ctx) override {
         if (ctx->stringarray()) return visit(ctx->stringarray());
+        else if (ctx->funcname) {}
         else a += 1;
         return nullptr;
     }
@@ -73,7 +74,7 @@ uint64_t makeInstruction(Instruction i0, int32_t i1) {
 
 class Assembler : BytecodeBaseVisitor {
 public:
-    vmcode run(std::string assembly) {
+    vmunit run(std::string assembly) {
         ANTLRInputStream input(assembly);
         BytecodeLexer lexer(&input);
         CommonTokenStream tokens(&lexer);
@@ -86,7 +87,7 @@ public:
         code.clear();
         visitCode(tree);
 
-        return code;
+        return {code, funcs};
     }
 
     virtual antlrcpp::Any visitCode(BytecodeParser::CodeContext *ctx) override {
@@ -165,6 +166,8 @@ public:
             code.push_back(visit(ctx->intl).as<WORD>());
         } else if (ctx->floatl) {
             code.push_back(visit(ctx->floatl).as<WORD>());
+        } else if (ctx->funcname) {
+            funcs[visit(ctx->funcname).as<string>()] = make_pair(code.size(), visit(ctx->numargs).as<WORD>());
         }
         return nullptr;
     }
@@ -200,8 +203,9 @@ public:
 
     addressmap addresses;
     vmcode code;
+    std::map<std::string, std::pair<PTR, int>> funcs;
 };
 
-vmcode assemble(string assembly) {
+vmunit assemble(string assembly) {
     return Assembler().run(assembly);
 }

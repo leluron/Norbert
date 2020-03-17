@@ -1,5 +1,7 @@
-a = [1.0]
+function main() {
+    a = [1.0]
 
-a[0] = 2.0
+    a[0] = 2.0
 
-printf("value : %f\n", a[0])
+    printf("value : %f\n", a[0])
+}

@@ -2,6 +2,7 @@
 
 #include "AST.h"
 #include "parser/NorbertBaseVisitor.h"
+#include <utility>
 
 class ASTGen : NorbertBaseVisitor {
 public:
@@ -10,11 +11,24 @@ public:
     }
 
 private:
-
     virtual antlrcpp::Any visitFile(NorbertParser::FileContext *ctx) override {
-        vector<statp> l;
-        for (auto s : ctx->stat()) l.push_back(visit(s));
+        map<string, Function> l;
+        for (auto s : ctx->function()) 
+            l.insert(visit(s).as<pair<string, Function>>());
         return l;
+    }
+
+    virtual antlrcpp::Any visitFunction(NorbertParser::FunctionContext *ctx) override {
+        vector<string> args;
+        for (int i=1;i<ctx->ID().size();i++) args.push_back(ctx->ID(i)->getText());
+        return make_pair<string, Function>(
+            ctx->ID(0)->getText(),
+            Function{
+                args,
+                (ctx->stat())?visit(ctx->stat()).as<statp>():nullptr,
+                (ctx->exp())?visit(ctx->exp()).as<expp>():nullptr,
+            }
+        );
     }
 
     virtual antlrcpp::Any visitAssignstat(NorbertParser::AssignstatContext *ctx) override {

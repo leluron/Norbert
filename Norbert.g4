@@ -1,6 +1,8 @@
 grammar Norbert;
 
-file: stat* EOF;
+file: function* EOF;
+
+function : 'function ' ID '(' (ID (',' ID)*)? ')' (stat|('=' exp));
 
 stat
   : lexp '=' exp #assignstat

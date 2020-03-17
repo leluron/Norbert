@@ -14,6 +14,13 @@
 
 #define ENDPC 0xffffff
 
+using vmcode = std::vector<WORD>;
+
+struct vmunit {
+    vmcode code;
+    std::map<std::string, std::pair<PTR, int>> funcs;
+};
+
 enum Type : int8_t {
     /* Name      desc */
     Nil = 0,
@@ -21,7 +28,7 @@ enum Type : int8_t {
     Float,     
     String,    // ptr to str const in code or str in heap
     Pointer,   // ptr to anywhere
-    Closure,   // ptr to {code ptr, num_captured, value...}
+    Closure,   // ptr to {code ptr, num_args, num_captured, value...}
     List,      // ptr to {num_elements, type, value...}
     Tuple,     // ptr to {num_elements, value...}
     Map        // ptr to {num_pairs, (value, value)...}
@@ -73,7 +80,7 @@ enum Instruction : int8_t {
     TupleAccess,    // int    - (tuple) -> value
 
     ClosureCreate,  // ptr       - (value...) -> closure
-    ClosureCall,    //           - (closure, value...) -> value|closure
+    ClosureCall,    // numargs   - (closure, value...) -> value|closure
 
     MapCreate,      // size  - (value...) -> map
     MapAdd,         //       - (map, value, value) -> map
@@ -86,19 +93,21 @@ enum ReservedFuncs : uint32_t {
     Printf, 
 };
 
-using vmcode = std::vector<WORD>;
-
 class VirtualMachine {
 public:
     VirtualMachine(std::ostream &o) : out(o) {}
-    void load(vmcode program) {
-        memcpy(memory, program.data(), program.size()*sizeof(WORD));
+    void load(vmunit program) {
+        memcpy(memory, program.code.data(), program.code.size()*sizeof(WORD));
+        for (auto f : program.funcs) {
+            funcNames[f.first] = f.second.first;
+            funcNumArgs[f.second.first] = f.second.second;
+        }
     }
     
     void step();
-    void run();
+    void run(std::string funcname);
     
-    const static int CODE_SIZE          = 1 << 12;
+    const static int CODE_SIZE          = 1 << 14;
     const static int LOCAL_VARS_SIZE    = 1 << 5;
     const static int MAX_STACK_SIZE     = 1 << 6;
     const static int MAX_OP_STACK_SIZE  = 1 << 8;

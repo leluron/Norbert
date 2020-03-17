@@ -9,9 +9,9 @@ using namespace std;
 
 class CodeGen {
 public:
-    vmcode gen(File f) {
-        for (auto s : f.stats) {
-            visit(s);
+    vmunit gen(File f) {
+        for (auto s : f.functions) {
+            visit(s.first, s.second);
         }
         code << "return" << endl;
         /* DEBUG */
@@ -19,6 +19,25 @@ public:
         cout << constantsstr.str() << endl;
         /*       */
         return assemble(str.str() + constantsstr.str());
+    }
+
+    void visit(string name, Function f) {
+        string lbl = name + "entry";
+        funclbls[name] = lbl;
+
+        locals.clear();
+        localId = 0;
+        for (auto a : f.args) {
+            locals[a] = localId;
+            localId += 1;
+        }
+
+        code << lbl << ": function " << name << " " << f.args.size() << endl;
+        if (f.body) visit(f.body);
+        else {
+            visit(f.e);
+            code << "return" << endl;
+        }
     }
 
     void visit(statp sb) {
@@ -124,7 +143,7 @@ public:
             code << "load_str " << lbl << endl;
         } else if (auto e = dynamic_pointer_cast<IdExp>(eb)) {
             auto it = locals.find(e->name);
-            if (it == locals.end()) throw runtime_error("Can't find local");
+            if (it == locals.end()) throw runtime_error("Can't find local or function");
             code << "load_var " << it->second << endl;
         } else if (auto e = dynamic_pointer_cast<FuncCallExp>(eb)) {
             for (int i=e->args.size()-1;i>=0;i--) {
@@ -149,7 +168,11 @@ public:
                 else if (n=="!=") code << "neq" << endl;
                 else if (n=="len") code << "list_length" << endl;
                 // stdlib
-                else code << "call_ext " << n << endl;
+                else {
+                    auto it = funclbls.find(n);
+                    if (it == funclbls.end()) code << "call_ext " << n << endl;
+                    else code << "call " << it->second << endl;
+                }
             } else {
                 //TODO implement
                 throw;
@@ -185,6 +208,7 @@ private:
 
     int lblId = 0;
 
+    map<string, string> funclbls;
     map<string, int32_t> locals;
     int localId = 0;
     stringbuf str;

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     m.load(code);
 
     cout << "VM output : " << endl;
-    m.run();
+    m.run("main");
 
     return 0;
 }

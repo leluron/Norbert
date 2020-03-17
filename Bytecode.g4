@@ -7,7 +7,8 @@ instr
 
 label: name ':';
 op
-    : opcode intliteral
+    : 'function' funcname=name numargs=intliteral
+    | opcode intliteral
     | opcode name
     | opcode
     | stringarray

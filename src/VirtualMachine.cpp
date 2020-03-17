@@ -69,6 +69,8 @@ void VirtualMachine::step() {
             auto addr = asPtr(i1);
             if (addr >= CODE_START && addr < CODE_END) { 
                 newStack(PC);
+                for (int i=funcNumArgs[addr]-1;i>=0;i--)
+                    setDword(getStackPtr(i), popOpStack());
                 PC = addr;
             }
             break;
@@ -181,7 +183,10 @@ void VirtualMachine::step() {
     }
 }
 
-void VirtualMachine::run() {
+void VirtualMachine::run(std::string funcname) {
+    auto it = funcNames.find(funcname);
+    if (it == funcNames.end()) throw runtime_error("Can't find entry function");
+    PC = it->second;
     newStack();
     while (PC != ENDPC && PC < CODE_END) {
         step();

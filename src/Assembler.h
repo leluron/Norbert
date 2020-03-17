@@ -2,4 +2,4 @@
 
 #include "VirtualMachine.h"
 
-vmcode assemble(std::string assembly);
+vmunit assemble(std::string assembly);

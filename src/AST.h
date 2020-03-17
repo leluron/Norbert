@@ -15,6 +15,20 @@ using statp = shared_ptr<Stat>;
 using expp  = shared_ptr<Exp >;
 using lexpp = shared_ptr<Lexp>;
 
+class Function {
+public:
+    vector<string> args;
+    statp body;
+    expp e;
+};
+
+class File {
+
+public:
+    map<string, Function> functions;
+};
+
+
 class Lexp {
 public:
     virtual ~Lexp() {}
@@ -33,11 +47,6 @@ public:
     expp e;
 };
 
-class File {
-
-public:
-    vector<statp> stats;
-};
 
 class Stat {
 
